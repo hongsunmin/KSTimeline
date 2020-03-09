@@ -278,6 +278,8 @@ class ViewController2: UIViewController {
     
     internal func playEvent(event: KSTimelineEvent) {
         
+        guard let videoURL = event.videoURL else { return }
+        
         self.displayLink?.invalidate()
         
         self.displayLink = nil
@@ -286,7 +288,7 @@ class ViewController2: UIViewController {
         
         NotificationCenter.default.removeObserver(self, name: NSNotification.Name.AVPlayerItemDidPlayToEndTime, object: self.player?.currentItem)
         
-        let asset = AVURLAsset(url: event.videoURL)
+        let asset = AVURLAsset(url: videoURL)
         
         let playerItem = AVPlayerItem(asset: asset)
         
@@ -309,7 +311,7 @@ class ViewController2: UIViewController {
         
         self.displayLink = CADisplayLink(target: self, selector: #selector(ViewController2.displayLinkDidFire(_:)))
         
-        self.displayLink!.add(to: RunLoop.current, forMode: RunLoopMode.commonModes)
+        self.displayLink!.add(to: RunLoop.current, forMode: RunLoop.Mode.common)
         
     }
     
@@ -521,9 +523,9 @@ extension ViewController2: KSTimelineDelegate {
         
         let timeScale = self.player?.currentItem?.asset.duration.timescale
         
-        let time = CMTimeMakeWithSeconds(interval, timeScale!)
+        let time = CMTimeMakeWithSeconds(interval, preferredTimescale: timeScale!)
         
-        self.player?.seek(to: time, toleranceBefore: kCMTimeZero, toleranceAfter: kCMTimeZero)
+        self.player?.seek(to: time, toleranceBefore: CMTime.zero, toleranceAfter: CMTime.zero)
         
     }
     
@@ -531,13 +533,13 @@ extension ViewController2: KSTimelineDelegate {
 
 extension ViewController2: KSTimelineDatasource {
     
-    func numberOfEvents(_ timeline: KSTimelineView) -> Int {
+    func numberOfEvents(_ timeline: KSTimelineView, dateOfSource date: Date) -> Int {
         
         return self.events.count
         
     }
     
-    func event(_ timeline: KSTimelineView, at index: Int) -> KSTimelineEvent {
+    func event(_ timeline: KSTimelineView, dateOfSource date: Date, at index: Int) -> KSTimelineEvent {
         
         return self.events[index]
         

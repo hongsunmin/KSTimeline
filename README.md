@@ -1,6 +1,12 @@
-# KSTimeline
+# InfiniteKSTimeline
 
-KSTimeline, written in swift, is a simple and customizable view which supports showing a series of events in a vertically time-sorted structure.
+InfiniteKSTimeline,
+It was created by adding [StreetScroller-Swift](https://github.com/ooper-shlab/StreetScroller-Swift)'s [InfiniteScrollView](https://github.com/ooper-shlab/StreetScroller-Swift/blob/master/StreetScroller/InfiniteScrollView.swift) to [KSTimeline](https://github.com/KenShih522/KSTimeline).
+
+InfiniteKSTimeline, written in swift, is a simple and customizable view which supports showing a series of events in infinite vertically time-sorted structure.
+
+## Requirements
+-  Swift 5
 
 ## Preview
 
@@ -45,9 +51,9 @@ KSTimeline, written in swift, is a simple and customizable view which supports s
 ```swift
 @objc public protocol KSTimelineDatasource: NSObjectProtocol {
     
-    func numberOfEvents(_ timeline: KSTimelineView) -> Int
+    func numberOfEvents(_ timeline: KSTimelineView, dateOfSource date: Date) -> Int
     
-    func event(_ timeline: KSTimelineView, at index: Int) -> KSTimelineEvent
+    func event(_ timeline: KSTimelineView, dateOfSource date: Date, at index: Int) -> KSTimelineEvent
     
 }
 ```
@@ -63,9 +69,9 @@ KSTimeline, written in swift, is a simple and customizable view which supports s
     
     public var duration: Double
     
-    public var videoURL: URL
+    public var videoURL: URL?
     
-    public init(start: Date, end: Date, duration: Double, videoURL: URL) {
+    public init(start: Date, end: Date, duration: Double, videoURL: URL?) {
         
         self.start = start
         
@@ -83,9 +89,4 @@ KSTimeline, written in swift, is a simple and customizable view which supports s
 ```
 
 # Installation
-### Cocoapods
-KSTimeline can be added to your project using CocoaPods by adding the following line to your `Podfile`:
-
-```ruby
-pod 'KSTimeline'
-```
+you need to copy the content of the KSTimeline folder into your project

@@ -13,12 +13,26 @@ import UIKit
     func numberOfEvents(_ ruler: KSTimelineRulerView) -> Int
     
     func timelineRuler(_ ruler: KSTimelineRulerView, eventAt index: Int) -> KSTimelineEvent
+    
+    func dateOfTimelineRuler(_ ruler: KSTimelineRulerView) -> Date
 
+}
+
+@objc protocol KSTimelineRulerColorDataSource: NSObjectProtocol {
+    
+    func backgroundColor(_ ruler: KSTimelineRulerView) -> UIColor
+    
+    func eventColor(_ ruler: KSTimelineRulerView) -> UIColor
+    
+    func timeColor(_ ruler: KSTimelineRulerView) -> UIColor
+    
 }
 
 @IBDesignable open class KSTimelineRulerView: UIView {
     
     var dataSource: KSTimelineRulerEventDataSource?
+    
+    var colorDataSource: KSTimelineRulerColorDataSource?
     
     var drawWave: Bool = false {
         
@@ -30,15 +44,27 @@ import UIKit
         
     }
     
+    lazy var dateFormatter: DateFormatter = {
+        
+        var dateFormatter = DateFormatter()
+        
+        dateFormatter.dateFormat = "MM월dd일"
+        
+        return dateFormatter
+        
+    }()
+    
     internal func drawEvent(rect: CGRect) {
         
         guard let dataSource = self.dataSource else { return }
+        
+        guard let delegate = self.colorDataSource else { return }
                 
         let numberOfEvents = dataSource.numberOfEvents(self)
         
-        let padding = UIScreen.main.widthOfSafeArea()
+        let padding = CGFloat(0)
         
-        let contentWidth = self.bounds.width - padding
+        let contentWidth = self.bounds.width
                 
         let unit_hour_width = contentWidth / 24
         
@@ -46,9 +72,17 @@ import UIKit
         
         let unit_second_width = unit_minute_width / 60
         
-        let unit_gap_height = CGFloat(20)
+        let unit_gap_height = CGFloat(25)
         
-        let wave_height = CGFloat(5)
+        let wave_height = self.bounds.height - unit_gap_height
+        
+        let background_color = delegate.backgroundColor(self)
+        
+        background_color.setFill()
+        
+        UIRectFill(CGRect(x: 0, y: rect.size.height - wave_height - unit_gap_height, width: contentWidth, height: wave_height))
+        
+        let event_color = delegate.eventColor(self)
         
         for index in 0..<numberOfEvents {
             
@@ -70,11 +104,31 @@ import UIKit
 
             let end_x = (unit_hour_width * CGFloat(end_hour)) + (unit_minute_width * CGFloat(end_minute)) + (unit_second_width * CGFloat(end_second)) + (padding / 2)
             
-            UIColor.blue.setFill()
+            event_color.setFill()
             
             UIRectFill(CGRect(x: start_x, y: rect.size.height - wave_height - unit_gap_height, width: end_x - start_x, height: wave_height))
             
         }
+        
+    }
+    
+    internal func drawRoundRect(rect: CGRect) {
+        
+        let context: CGContext = UIGraphicsGetCurrentContext()!
+        
+        context.saveGState()
+        
+        let clipPath: CGPath = UIBezierPath(roundedRect: rect, cornerRadius: 2).cgPath
+        
+        context.addPath(clipPath)
+        
+        context.setFillColor(UIColor.init(displayP3Red: 149 / 255, green: 149 / 255, blue: 149 / 255, alpha: 1).cgColor)
+        
+        context.closePath()
+        
+        context.fillPath()
+        
+        context.restoreGState()
         
     }
 
@@ -82,9 +136,17 @@ import UIKit
 
         super.draw(rect)
         
-        let padding = UIScreen.main.widthOfSafeArea()
+        guard let dataSource = self.dataSource else { return }
+        
+        guard let delegate = self.colorDataSource else { return }
+        
+        if self.drawWave {
+            
+            self.drawEvent(rect: rect)
+            
+        }
 
-        let contentWidth = self.bounds.width - padding
+        let contentWidth = self.bounds.width
 
         let unit_hour_width = contentWidth / 24
 
@@ -92,7 +154,7 @@ import UIKit
 
         let unit_second_width = unit_minute_width / 5
 
-        let unit_hour_height = self.bounds.height / 2
+        let unit_hour_height = self.bounds.height / 6
 
         let unit_minute_height = unit_hour_height / 2
 
@@ -104,31 +166,61 @@ import UIKit
 
         let show_second = unit_second_width > 10 ? true : false
 
-        let unit_gap_height = CGFloat(20)
+        let unit_gap_height = CGFloat(25)
 
-        let extra_padding = padding / 2
+        let extra_padding = CGFloat(0)
+        
+        let font = UIFont.systemFont(ofSize: 14)
+        
+        let calibration_color: UIColor = UIColor.init(displayP3Red: 17 / 255, green: 17 / 255, blue: 17 / 255, alpha: 1)
+        
+        let time_color = delegate.timeColor(self)
         
         let textFontAttributes = [
-            NSAttributedStringKey.font: UIFont.systemFont(ofSize: 12),
-            NSAttributedStringKey.foregroundColor: UIColor.lightGray,
-            NSAttributedStringKey.paragraphStyle: NSParagraphStyle.default
+            NSAttributedString.Key.font: font,
+            NSAttributedString.Key.foregroundColor: time_color,
+            NSAttributedString.Key.paragraphStyle: NSParagraphStyle.default
         ]
         
-        let text_width = CGFloat(36)
+        let text_size = "99:99".sizeOfString(usingFont: font)
         
-        let text_height = CGFloat(12)
+        let text_width = text_size.width
         
-        UIColor.lightGray.setFill()
+        let text_height = text_size.height
+        
+        let text_padding = text_width * 2
+        
+        var draw_hour_if_zero: Int = 0
+        
+        var draw_minute_if_zero: Int = 0
+        
+        calibration_color.setFill()
 
         if show_hour == true {
+            
+            var unit_hour_gap: Int = Int((text_width + text_padding) / unit_hour_width)
+            
+            if unit_hour_gap % 2 == 1 {
+                
+                unit_hour_gap -= 1
+                
+            }
+            
+            var unit_minute_gap: Int = Int((text_width + text_padding) / unit_minute_width)
+            
+            if unit_minute_gap % 2 == 1 {
+                
+                unit_minute_gap -= 1
+                
+            }
 
-            for hour in 0...23 {
+            for hour in 0...24 {
 
                 let hour_x = CGFloat(hour) * unit_hour_width + extra_padding
 
                 let hour_y = rect.size.height - unit_hour_height
 
-                UIColor.lightGray.setFill()
+                calibration_color.setFill()
 
                 UIRectFill(CGRect(x: hour_x, y: hour_y - unit_gap_height, width: 1, height: unit_hour_height))
 
@@ -140,7 +232,7 @@ import UIKit
 
                         let minute_y = rect.size.height - unit_minute_height
 
-                        UIColor.lightGray.setFill()
+                        calibration_color.setFill()
 
                         UIRectFill(CGRect(x: hour_x + minute_x, y: minute_y - unit_gap_height, width: 1, height: unit_minute_height))
 
@@ -152,7 +244,7 @@ import UIKit
 
                                 let second_y = rect.size.height - unit_sec_height
 
-                                UIColor.lightGray.setFill()
+                                calibration_color.setFill()
 
                                 UIRectFill(CGRect(x: hour_x + minute_x + second_x, y: second_y - unit_gap_height, width: 1, height: unit_sec_height))
 
@@ -164,36 +256,97 @@ import UIKit
                             
                             let text_x = hour_x + minute_x - (text_width / 2)
                             
-                            let text_y = rect.size.height - 17
+                            let text_y = rect.size.height - unit_gap_height + ((unit_gap_height - text_height) / 2)
                             
-                            (String(format: "%02d:%02d", hour, minute*10) as NSString).draw(in: CGRect(x: text_x, y: text_y, width: text_width, height: text_height), withAttributes: textFontAttributes)
+                            if minute != 0 && draw_minute_if_zero == 0 {
+                                
+                                (String(format: "%02d:%02d", hour, minute*10) as NSString).draw(in: CGRect(x: text_x, y: text_y, width: text_width, height: text_height), withAttributes: textFontAttributes)
+                                
+                            }
                             
+                            draw_minute_if_zero += 1
+                            
+                            if draw_minute_if_zero >= unit_minute_gap {
+                                
+                                draw_minute_if_zero = 0
+                                
+                            }
                         }
 
                     }
 
                 }
 
-                let text_x = hour_x - (text_width / 2)
+                let text_y = rect.size.height - unit_gap_height + ((unit_gap_height - text_height) / 2)
 
-                let text_y = rect.size.height - 17
-
-                (String(format: "%02d:00", hour) as NSString).draw(in: CGRect(x: text_x, y: text_y, width: text_width, height: text_height), withAttributes: textFontAttributes)
-
+                if draw_hour_if_zero == 0 {
+                    
+                    if hour == 0 {
+                        
+                        let date = dataSource.dateOfTimelineRuler(self)
+                        
+                        let date_text = date.string(dateFormatter: self.dateFormatter)
+                        
+                        let date_text_size = date_text.sizeOfString(usingFont: font)
+                        
+                        let date_text_width = date_text_size.width
+                        
+                        let text_x = hour_x - (date_text_width / 2)
+                        
+                        let rect_padding = CGFloat(2)
+                        
+                        self.drawRoundRect(rect: CGRect(x: text_x - rect_padding, y: text_y - rect_padding, width: date_text_width + rect_padding * 2, height: date_text_size.height + rect_padding * 2))
+                        
+                        (date_text as NSString).draw(in: CGRect(x: text_x, y: text_y, width: date_text_width, height: text_height), withAttributes: [
+                            NSAttributedString.Key.font: font,
+                            NSAttributedString.Key.foregroundColor: UIColor.white,
+                            NSAttributedString.Key.paragraphStyle: NSParagraphStyle.default
+                            ])
+                        
+                    } else if hour == 24 {
+                        
+                        let date = Calendar.current.date(byAdding: Calendar.Component.day, value: 1, to: dataSource.dateOfTimelineRuler(self))!
+                        
+                        let date_text = date.string(dateFormatter: self.dateFormatter)
+                        
+                        let date_text_size = date_text.sizeOfString(usingFont: font)
+                        
+                        let date_text_width = date_text_size.width
+                        
+                        let text_x = hour_x - (date_text_width / 2)
+                        
+                        let rect_padding = CGFloat(2)
+                        
+                        self.drawRoundRect(rect: CGRect(x: text_x - rect_padding, y: text_y - rect_padding, width: date_text_width + rect_padding * 2, height: date_text_size.height + rect_padding * 2))
+                        
+                        (date_text as NSString).draw(in: CGRect(x: text_x, y: text_y, width: date_text_width, height: text_height), withAttributes: [
+                            NSAttributedString.Key.font: font,
+                            NSAttributedString.Key.foregroundColor: UIColor.white,
+                            NSAttributedString.Key.paragraphStyle: NSParagraphStyle.default
+                            ])
+                        
+                    } else {
+                        
+                        let text_x = hour_x - (text_width / 2)
+                        
+                        (String(format: "%02d:00", hour) as NSString).draw(in: CGRect(x: text_x, y: text_y, width: text_width, height: text_height), withAttributes: textFontAttributes)
+                    }
+                }
+                
+                draw_hour_if_zero += 1
+                
+                if draw_hour_if_zero >= unit_hour_gap {
+                    
+                    draw_hour_if_zero = 0
+                    
+                }
+                
             }
 
-            UIColor.lightGray.setFill()
+            calibration_color.setFill()
 
-            UIRectFill(CGRect(x: extra_padding, y: 0, width: rect.size.width - extra_padding*2, height: 0.5))
+            UIRectFill(CGRect(x: extra_padding, y: rect.size.height - unit_gap_height, width: rect.size.width - extra_padding*2, height: 1))
 
-            UIRectFill(CGRect(x: extra_padding, y: rect.size.height - 20, width: rect.size.width - extra_padding*2, height: 0.5))
-
-        }
-        
-        if self.drawWave {
-            
-            self.drawEvent(rect: rect)
-            
         }
         
     }
